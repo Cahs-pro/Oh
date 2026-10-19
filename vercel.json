@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/terms",   "destination": "/terms.html"   },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/copyright", "destination": "/copyright.html" },
+    { "source": "/s/:videoId", "destination": "/index.html" },
+    { "source": "/room/:roomId", "destination": "/index.html" },
+    {
+      "source": "/((?!api/)(?!icon\\.png)(?!icon-192\\.png)(?!icon-512\\.png)(?!icon-maskable-)(?!manifest\\.json)(?!sw\\.js)(?!features\\.js)(?!background\\.js)(?!stats\\.js)(?!plus\\.js)(?!favicon\\.ico)(?!terms\\.html)(?!privacy\\.html)(?!copyright\\.html).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/dl.js":        { "maxDuration": 60 },
+    "api/admin-vip.js": { "maxDuration": 10 }
+  },
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control",          "value": "no-cache" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    },
+    {
+      "source": "/manifest.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cross-Origin-Embedder-Policy", "value": "unsafe-none" },
+        { "key": "Cross-Origin-Opener-Policy",   "value": "same-origin-allow-popups" }
+      ]
+    }
+  ]
+}
