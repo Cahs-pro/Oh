@@ -48,6 +48,16 @@ Tətbiq statikdir, `index.html`-i hər hansı statik serverdə açmaq kifayətdi
 
 Firebase konfiqurasiyası `index.html`-dədir (veb açarları açıq olmaq üçün nəzərdə tutulub), məlumatları **Firebase Realtime Database qaydaları** qoruyur.
 
+### ⚠️ Birlikdə dinləmə otağı üçün qayda yeniləməsi (məcburi)
+
+Otaqlar `/rooms` düyünündə saxlanır. `permission_denied` xətası alırsınızsa, qaydalara `rooms` bloku əlavə olunmayıb:
+
+1. Firebase Console → layihə → **Realtime Database → Rules**
+2. `database.rules.json` faylındakı **`rooms`** blokunu mövcud qaydalarınıza köçürün (və ya bütün faylı tətbiq edin)
+3. **Publish** basın
+
+Alternativ: `firebase deploy --only database` (firebase.json-də rules faylı göstərilibsə).
+
 ## Məxfilik və hüquqlar
 - [İstifadə Şərtləri](https://cahsmusic.vercel.app/terms) · [Məxfilik Siyasəti](https://cahsmusic.vercel.app/privacy) · [Müəllif Hüquqları](https://cahsmusic.vercel.app/copyright)
 - Musiqi fayllarını serverimizdə saxlamırıq və yaymırıq. Məzmun YouTube-un pleyeri ilə göstərilir, hüquqlar sahiblərinə məxsusdur.

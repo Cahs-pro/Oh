@@ -47,7 +47,7 @@
       roomNeedLogin: "Otaq üçün əvvəlcə Google ilə daxil ol", roomLogin: "Google ilə daxil ol",
       roomCreated: "✅ Otaq yaradıldı — kodu dostlara göndər",
       roomJoined: "🎧 Otağa qoşuldun — sinxron dinləmə aktivdir",
-      roomLeft: "Otaqdan çıxdın", roomNotFound: "❌ Otaq tapılmadı", roomBadCode: "⚠ Kod düzgün deyil",
+      roomLeft: "Otaqdan çıxdın", roomNotFound: "❌ Otaq tapılmadı", roomBadCode: "⚠ Kod düzgün deyil", roomPerm: "⚠ Firebase qaydaları /rooms-a icazə vermir — database.rules.json-dakı rooms blokunu Firebase Console → Realtime Database → Rules-a əlavə et",
       roomInvite: "Dəvət linki", roomCopied: "🔗 Dəvət linki kopyalandı!",
       roomMembers: "İştirakçılar", roomNow: "Otaqda çalınır", roomLeave: "Otaqdan çıx",
       roomCode: "Kod:", roomSync: "sinxron", roomHost: "qonaqpərvər", copyLbl: "kopyala", rep7days: "7 gün",
@@ -85,7 +85,7 @@
       roomNeedLogin: "Sign in with Google to use rooms", roomLogin: "Sign in with Google",
       roomCreated: "✅ Room created — send the code to friends",
       roomJoined: "🎧 Joined — synced listening is on",
-      roomLeft: "Left the room", roomNotFound: "❌ Room not found", roomBadCode: "⚠ Invalid code",
+      roomLeft: "Left the room", roomNotFound: "❌ Room not found", roomBadCode: "⚠ Invalid code", roomPerm: "⚠ Firebase rules deny /rooms — add the rooms block from database.rules.json in Firebase Console → Realtime Database → Rules",
       roomInvite: "Invite link", roomCopied: "🔗 Invite link copied!",
       roomMembers: "Members", roomNow: "Playing in room", roomLeave: "Leave room",
       roomCode: "Code:", roomSync: "in sync", roomHost: "host", copyLbl: "copy", rep7days: "7 days",
@@ -123,7 +123,7 @@
       roomNeedLogin: "Войди через Google, чтобы использовать комнаты", roomLogin: "Войти через Google",
       roomCreated: "✅ Комната создана — отправь код друзьям",
       roomJoined: "🎧 Ты в комнате — синхронное прослушивание включено",
-      roomLeft: "Ты вышел из комнаты", roomNotFound: "❌ Комната не найдена", roomBadCode: "⚠ Неверный код",
+      roomLeft: "Ты вышел из комнаты", roomNotFound: "❌ Комната не найдена", roomBadCode: "⚠ Неверный код", roomPerm: "⚠ Правила Firebase не пускают /rooms — добавь блок rooms из database.rules.json в Firebase Console → Realtime Database → Rules",
       roomInvite: "Ссылка-приглашение", roomCopied: "🔗 Ссылка скопирована!",
       roomMembers: "Участники", roomNow: "Играет в комнате", roomLeave: "Выйти из комнаты",
       roomCode: "Код:", roomSync: "синхронно", roomHost: "хост", copyLbl: "копировать", rep7days: "7 дней",
@@ -562,7 +562,7 @@ ${privRow("online", "🟢 " + L("privOnline"), L("privOnlineSub"))}
 
     // üzvlük + avtomatik çıxış
     ROOM.memRef = fbD.ref(`rooms/${id}/members/${me().uid}`);
-    ROOM.memRef.set({ name: me().displayName || "Anonim", photo: me().photoURL || "", at: Date.now() }).catch(() => {});
+    ROOM.joinPromise = ROOM.memRef.set({ name: me().displayName || "Anonim", photo: me().photoURL || "", at: Date.now() });
     ROOM.memRef.onDisconnect().remove().catch(() => {});
     ROOM.hb = setInterval(() => { try { ROOM.memRef && ROOM.memRef.child("at").set(Date.now()).catch(() => {}); } catch (_) {} }, 15000);
 
@@ -574,7 +574,7 @@ ${privRow("online", "🟢 " + L("privOnline"), L("privOnlineSub"))}
     try { if (ROOM.membersRef) ROOM.membersRef.off(); } catch (_) {}
     try { if (ROOM.memRef) ROOM.memRef.onDisconnect().cancel(); } catch (_) {}
     clearInterval(ROOM.timer); clearInterval(ROOM.hb);
-    ROOM.id = null; ROOM.host = null; ROOM.name = ""; ROOM.lastRemote = null; ROOM.members = {};
+    ROOM.id = null; ROOM.host = null; ROOM.name = ""; ROOM.lastRemote = null; ROOM.members = {}; ROOM.joinPromise = null;
     ROOM.stateRef = ROOM.membersRef = ROOM.memRef = null; ROOM.timer = ROOM.hb = 0;
   }
 
@@ -591,6 +591,9 @@ ${privRow("online", "🟢 " + L("privOnline"), L("privOnlineSub"))}
     renderRoomModal();
   }
 
+  const isPermErr = e => !!(e && /permission_denied|PERMISSION_DENIED/i.test(String(e.code || e.message || e)));
+  const roomFail = e => { say(isPermErr(e) ? L("roomPerm") : "❌ " + (e && e.message ? e.message : e), isPermErr(e) ? 7000 : 3500); };
+
   const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
   const mkCode = () => Array.from({ length: 6 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join("");
 
@@ -602,7 +605,7 @@ ${privRow("online", "🟢 " + L("privOnline"), L("privOnlineSub"))}
       const snap = await fbD.ref(`rooms/${code}`).get().catch(() => null);
       if (snap && snap.exists()) continue;
       const data = { name: (me().displayName || "Anonim") + " — otaq", host: me().uid, createdAt: Date.now() };
-      try { await fbD.ref(`rooms/${code}`).set(data); } catch (e) { say("❌ " + e.message); return; }
+      try { await fbD.ref(`rooms/${code}`).set(data); } catch (e) { console.warn("[room] yaratma:", e); roomFail(e); return; }
       detachRoom();
       attachRoom(code, data);
       say(L("roomCreated"));
@@ -617,10 +620,15 @@ ${privRow("online", "🟢 " + L("privOnline"), L("privOnlineSub"))}
     if (!/^[A-Z0-9-]{4,24}$/.test(code)) { say(L("roomBadCode")); return; }
     if (!hasFB()) { say("❌ Firebase yüklənməyib"); return; }
     if (!me()) { pendingRoom = code; say("⚠ " + L("roomNeedLogin")); renderRoomModal(); return; }
-    const snap = await fbD.ref(`rooms/${code}`).get().catch(() => null);
+    let snap = null;
+    try { snap = await fbD.ref(`rooms/${code}`).get(); }
+    catch (e) { console.warn("[room] qoşulma:", e); roomFail(e); return; }
     if (!snap || !snap.exists()) { say(L("roomNotFound")); return; }
     detachRoom();
     attachRoom(code, snap.val() || {});
+    // üzvlük yazısı icazəsizdirsə dərhal xəbər ver
+    try { await ROOM.joinPromise; }
+    catch (e) { console.warn("[room] üzvlük:", e); detachRoom(); roomFail(e); return; }
     say(L("roomJoined"), 4000);
     renderRoomModal();
   }
